@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 description = "RS485 pool controller service for Raspberry Pi"
 license = "MIT"
+repository = "https://github.com/knottjason/pool_controller"
+homepage = "https://github.com/knottjason/pool_controller"
 rust-version = "1.85"
 
 [dependencies]

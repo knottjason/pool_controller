@@ -1,6 +1,6 @@
 [Unit]
 Description=RS Pool Controller
-Documentation=https://github.com/bailout00/rs_pool
+Documentation=https://github.com/knottjason/pool_controller
 After=network-online.target
 Wants=network-online.target
 
