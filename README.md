@@ -15,6 +15,55 @@ Runs as a systemd service on a Raspberry Pi (tested on Pi Zero 2 W) with a Waves
 
 Also required on the RS485 bus (not linked above): Waveshare Modbus RTU 8-ch relay board (slave `0x01`) and the VS pump (slave `0x15`), plus an NTC thermistor / divider for the ADS1115.
 
+## Home Assistant
+
+Designed to sit on the same MQTT broker as [Home Assistant](https://www.home-assistant.io/) (MQTT integration / Mosquitto add-on). Short JSON keys match the earlier ESP controller so existing automations, MQTT sensors, and switches can keep working with little or no change.
+
+Point HA at your broker, then use the topics below (defaults in `deploy/rs-pool.toml`). Status publishes immediately on real commanded changes and on a short heartbeat (~4s). `pool/connected` is retained with LWT `"0"` so HA can show availability.
+
+**Cutover:** only one publisher should own `pool/#` — stop the ESP before enabling this service with a non-empty `[mqtt].host`.
+
+## MQTT
+
+| Topic | Direction | Notes |
+|-------|-----------|--------|
+| `pool/command` | subscribe | Partial JSON object; only present keys are applied |
+| `pool/status` | publish | Full snapshot (commanded + measured) |
+| `pool/connected` | publish (retained) | `"1"` when up; LWT `"0"` on disconnect |
+
+### `pool/command` (partial)
+
+| Key | Type | Meaning |
+|-----|------|---------|
+| `m` | int | Mode: `0` = pool, non-zero = spa |
+| `spd` | int | Pump demand **0..=35** (`0` / `<1` = off) |
+| `spt` | int | Pool setpoint (°F) |
+| `sst` | int | Spa setpoint (°F) |
+| `r1`…`r8` | boolish | Relays (`0`/`1`, `true`/`false`); **r6** heat, **r7** spa divert |
+| `v` | any | Accepted for ESP parity; ignored |
+
+```bash
+mosquitto_pub -h <mqtt-broker> -t pool/command -m '{"m":0,"spt":72,"r1":1}'
+mosquitto_pub -h <mqtt-broker> -t pool/command -m '{"spd":10}'
+```
+
+### `pool/status`
+
+| Key | Meaning |
+|-----|---------|
+| `ip` | Controller IP string |
+| `rpm` | Pump shaft RPM (sensor raw ÷ 4) |
+| `spd` | Commanded speed 0..=35 |
+| `watt` | Pump shaft watts |
+| `m` | Mode (pool/spa) |
+| `st` / `pt` | Spa / pool water °F, or JSON `null` if unknown / settling |
+| `sst` / `spt` | Spa / pool setpoints |
+| `at` | Ambient °F (pump sensor) |
+| `v` | Status schema version |
+| `r1`…`r8` | Measured coil feedback (`0`/`1`), or `null` until first Modbus read |
+
+`r1`–`r8` in status are **bus feedback only** — never an echo of the last command.
+
 ## Features
 
 - **MQTT** — `pool/command`, `pool/status`, `pool/connected` (LWT); partial JSON commands; `spd` scale **0..=35**
@@ -42,8 +91,6 @@ make deploy HOST=pi@192.168.1.50
 ```
 
 See **[deploy/README.md](deploy/README.md)** for UART / HAT setup, Modbus notes, ADS1115 wiring, and logging.
-
-**Cutover:** If replacing an ESP controller, power it off (or disconnect it from MQTT) before enabling `rs_pool` with a non-empty `[mqtt].host`. Do not run both publishers on `pool/#` at once.
 
 ## Configuration
 
