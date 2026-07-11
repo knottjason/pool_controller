@@ -4,6 +4,17 @@ Rust service that drives a variable-speed pool pump and Waveshare Modbus RTU rel
 
 Runs as a systemd service on a Raspberry Pi (tested on Pi Zero 2 W) with a Waveshare [RS485 CAN HAT](https://www.waveshare.com/wiki/RS485_CAN_HAT).
 
+## Bill of materials
+
+| Part | Notes | Link |
+|------|-------|------|
+| Raspberry Pi Zero 2 W kit | Board + headers / case / adapters | [Amazon](https://www.amazon.com/dp/B09LTDQY2Z) |
+| Waveshare RS485 CAN HAT | RS485 bus for Modbus (relay + pump) | [Amazon](https://www.amazon.com/dp/B07VMB1ZKH) |
+| ADS1115 16-bit ADC (I2C) | Water-temp NTC (A0); 3.3 V friendly | [Amazon](https://www.amazon.com/dp/B0GJCSJVH9) |
+| Waveshare PoE Ethernet USB HUB HAT | Optional power + Ethernet for Zero | [Amazon](https://www.amazon.com/dp/B09PZY3HGV) |
+
+Also required on the RS485 bus (not linked above): Waveshare Modbus RTU 8-ch relay board (slave `0x01`) and the VS pump (slave `0x15`), plus an NTC thermistor / divider for the ADS1115.
+
 ## Features
 
 - **MQTT** — `pool/command`, `pool/status`, `pool/connected` (LWT); partial JSON commands; `spd` scale **0..=35**
