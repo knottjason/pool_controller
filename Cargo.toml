@@ -1,0 +1,46 @@
+[package]
+name = "rs_pool"
+version = "0.1.0"
+edition = "2024"
+description = "RS485 pool controller service for Raspberry Pi"
+license = "MIT"
+rust-version = "1.85"
+
+[dependencies]
+anyhow = "1.0.103"
+axum = "0.8.9"
+axum-server = { version = "0.8.0", features = ["tls-rustls"] }
+base64 = "0.22.1"
+bcrypt = "0.19.2"
+rumqttc = { version = "0.25.1", default-features = false }
+rustls = "0.23.41"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+serialport = { version = "4.9.0", default-features = false }
+thiserror = "2.0.18"
+tokio = { version = "1.52.3", features = ["rt-multi-thread", "macros", "signal", "time", "sync", "net", "io-util"] }
+toml = "1.1.2"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+
+# ADS1115 I2C driver — Linux only (Pi). Host macOS builds use the mock path / stubs.
+[target.'cfg(target_os = "linux")'.dependencies]
+ads1x1x = "0.3"
+linux-embedded-hal = { version = "0.4", default-features = false, features = ["i2c"] }
+nb = "1"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+module_name_repetitions = "allow"

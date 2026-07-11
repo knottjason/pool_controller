@@ -1,0 +1,71 @@
+# rs_pool runtime config (installed to /etc/rs_pool/config.toml).
+# Override path with RS_POOL_CONFIG=/path/to/config.toml
+
+[serial]
+device = "/dev/serial0"
+baud = 9600
+
+[modbus]
+# Sole RS485 master: Waveshare V3 relay (0x01) + VS pump (0x15).
+enabled = true
+relay_addr = 1
+pump_addr = 21          # 0x15
+relay_poll_secs = 30
+pump_poll_secs = 8
+response_timeout_ms = 1000
+inter_frame_ms = 50
+spd_max = 35
+
+[mqtt]
+# Set to your broker hostname or IP before first deploy (empty disables MQTT).
+host = "mqtt.local"
+port = 1883
+client_id = "rs_pool"
+command_topic = "pool/command"
+status_topic = "pool/status"
+connected_topic = "pool/connected"
+
+[timing]
+# Quiet local debug tick (seconds).
+heartbeat_secs = 5
+# MQTT pool/status heartbeat (seconds); commands publish immediately.
+status_interval_secs = 4
+
+[persist]
+# Commanded settings only (mode, spd, setpoints, relays).
+path = "/var/lib/rs_pool/state.json"
+
+[temp]
+# ADS1115 + NTC water temp (shared sensor; divert r7 selects spa vs pool).
+# Fail-soft: missing chip keeps the service up with null st/pt.
+enabled = true
+i2c_device = "/dev/i2c-1"
+i2c_address = 0x48
+channel = 0          # A0
+poll_interval_secs = 4
+sample_count = 5
+sample_delay_ms = 10
+series_ohms = 10000.0
+thermistor_nominal_ohms = 10500.0
+thermistor_b = 3950.0
+thermistor_nominal_c = 25.0
+publish_delta_f = 0.1
+settle_secs = 90     # after divert valve r7 / active-loop change
+# Divert valve: prefers measured r7 when Modbus feedback is available.
+divert_relay = 7
+# ADS raw reject (16-bit single-ended scale 0..32767 for positive FS)
+raw_min = 80
+raw_max = 32600
+celsius_min = -20.0
+celsius_max = 60.0
+
+[http]
+# Read-only HTTPS status dashboard (Basic auth user `web`).
+# :80 redirects to HTTPS; TLS uses self-signed cert seeded by deploy.
+enabled = true
+http_bind = "0.0.0.0:80"
+https_bind = "0.0.0.0:443"
+cert_path = "/etc/rs_pool/tls/cert.pem"
+key_path = "/etc/rs_pool/tls/key.pem"
+auth_path = "/etc/rs_pool/http_auth"
+log_buffer_lines = 500

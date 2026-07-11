@@ -1,0 +1,5 @@
+# Host builds (macOS aarch64) use the default toolchain linker.
+# Pi Zero 2 W builds: `make build-pi` → cargo zigbuild (requires `zig` on PATH).
+
+[alias]
+check-all = ["clippy", "--all-targets", "--", "-D", "warnings"]

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>rs_pool</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --text: #e7ecf3;
+      --muted: #8b9bb4;
+      --ok: #3dd68c;
+      --bad: #f07178;
+      --accent: #5ccfe6;
+      --border: #2a3548;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+      padding: 1.25rem;
+    }
+    h1 { font-size: 1.25rem; margin: 0 0 0.25rem; letter-spacing: 0.04em; }
+    .sub { color: var(--muted); font-size: 0.85rem; margin-bottom: 1.25rem; }
+    .grid {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      margin-bottom: 1.25rem;
+    }
+    section {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.9rem 1rem;
+    }
+    section h2 {
+      margin: 0 0 0.6rem;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+    dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 0.75rem; }
+    dt { color: var(--muted); }
+    dd { margin: 0; }
+    .pill {
+      display: inline-block;
+      padding: 0.1rem 0.45rem;
+      border-radius: 3px;
+      font-size: 0.8rem;
+    }
+    .ok { background: color-mix(in srgb, var(--ok) 25%, transparent); color: var(--ok); }
+    .bad { background: color-mix(in srgb, var(--bad) 25%, transparent); color: var(--bad); }
+    .relays { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+    .relay {
+      min-width: 2.4rem;
+      text-align: center;
+      padding: 0.25rem 0.35rem;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      font-size: 0.8rem;
+    }
+    .relay.on { border-color: var(--accent); color: var(--accent); }
+    #logs {
+      max-height: 28rem;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin: 0;
+    }
+    .err { color: var(--bad); }
+  </style>
+</head>
+<body>
+  <h1>rs_pool</h1>
+  <p class="sub">Read-only status · auto-refresh 4s · <span id="clock">—</span></p>
+
+  <div class="grid">
+    <section>
+      <h2>Health</h2>
+      <dl id="health"></dl>
+    </section>
+    <section>
+      <h2>Pump / setpoints</h2>
+      <dl id="pump"></dl>
+    </section>
+    <section>
+      <h2>Temps (°F)</h2>
+      <dl id="temps"></dl>
+    </section>
+    <section>
+      <h2>Relays (measured)</h2>
+      <div class="relays" id="relays"></div>
+      <p class="sub" style="margin:0.75rem 0 0">Commanded shown in title tooltips</p>
+    </section>
+  </div>
+
+  <section>
+    <h2>Recent logs</h2>
+    <pre id="logs">Loading…</pre>
+  </section>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    function pill(ok, label) {
+      return `<span class="pill ${ok ? "ok" : "bad"}">${label}</span>`;
+    }
+
+    function fmt(v) {
+      if (v === null || v === undefined) return "—";
+      if (typeof v === "number" && !Number.isInteger(v)) return v.toFixed(1);
+      return String(v);
+    }
+
+    function dl(rows) {
+      return rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("");
+    }
+
+    async function refresh() {
+      try {
+        const [health, status, logs] = await Promise.all([
+          fetch("/api/health").then((r) => r.json()),
+          fetch("/api/status").then((r) => r.json()),
+          fetch("/api/logs?limit=200").then((r) => r.json()),
+        ]);
+
+        $("clock").textContent = new Date().toLocaleTimeString();
+
+        $("health").innerHTML = dl([
+          ["uptime", `${health.uptime_secs}s`],
+          ["mqtt", health.mqtt_enabled
+            ? pill(health.mqtt_connected, health.mqtt_connected ? "connected" : "down")
+            : pill(false, "disabled")],
+          ["temp", health.temp_enabled
+            ? pill(health.temp_ok, health.temp_ok ? "ok" : "fault")
+            : pill(false, "disabled")],
+          ["modbus", health.modbus_enabled
+            ? pill(health.modbus_ok, health.modbus_ok ? "ok" : "down")
+            : pill(false, "disabled")],
+        ]);
+
+        $("pump").innerHTML = dl([
+          ["ip", fmt(status.ip)],
+          ["mode", status.mode === 0 ? "pool (0)" : `spa (${status.mode})`],
+          ["spd", fmt(status.set_speed)],
+          ["rpm", fmt(status.rpm)],
+          ["watt", fmt(status.watt)],
+          ["spt / sst", `${fmt(status.set_pool_temp)} / ${fmt(status.set_spa_temp)}`],
+          ["dirty", `pump=${status.update_pump} relays=${status.update_relays}`],
+          ["settling", String(status.water_temp_settling)],
+        ]);
+
+        $("temps").innerHTML = dl([
+          ["pool (pt)", fmt(status.pool_temp)],
+          ["spa (st)", fmt(status.spa_temp)],
+          ["air (at)", fmt(status.air_temp)],
+        ]);
+
+        const measured = status.measured_relays || {};
+        const commanded = status.commanded_relays || {};
+        $("relays").innerHTML = [1,2,3,4,5,6,7,8].map((n) => {
+          const key = "r" + n;
+          const on = !!measured[key];
+          const cmd = !!commanded[key];
+          return `<div class="relay ${on ? "on" : ""}" title="commanded ${cmd}">${key}${on ? "●" : "○"}</div>`;
+        }).join("");
+
+        $("logs").textContent = (logs.lines || []).join("\n") || "(no lines yet)";
+        $("logs").scrollTop = $("logs").scrollHeight;
+      } catch (e) {
+        $("clock").innerHTML = `<span class="err">${e}</span>`;
+      }
+    }
+
+    refresh();
+    setInterval(refresh, 4000);
+  </script>
+</body>
+</html>

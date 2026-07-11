@@ -1,0 +1,36 @@
+[Unit]
+Description=RS Pool Controller
+Documentation=https://github.com/bailout00/rs_pool
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/rs_pool
+WorkingDirectory=/var/lib/rs_pool
+Restart=on-failure
+RestartSec=5
+# Serial / GPIO access typically needs root or membership in dialout/gpio.
+User=root
+Group=root
+
+# Logging: RUST_LOG in EnvironmentFile; output goes to journald.
+EnvironmentFile=-/etc/rs_pool/env
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=rs-pool
+
+# Hardening (relax later if serial device access requires it)
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/rs_pool
+# RS485 HAT UART + I2C ADS1115
+DeviceAllow=/dev/serial0 rw
+DeviceAllow=/dev/ttyAMA0 rw
+DeviceAllow=/dev/i2c-1 rw
+# HTTP dashboard binds privileged ports 80 (redirect) and 443 (TLS); root User= above.
+
+[Install]
+WantedBy=multi-user.target
